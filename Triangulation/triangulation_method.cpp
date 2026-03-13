@@ -108,6 +108,12 @@ bool Triangulation::triangulation(
 
     std::cout << "The W matrix" << WMatrix << std::endl;
 
+    Matrix U(points_0.size(), points_0.size(), 0.0);
+    Matrix S(points_0.size(), 9, 0.0);
+    Matrix V(9, 9, 0.0);
+
+    svd_decompose(WMatrix, U, S, V);
+
 
     return points_3d.size() > 0;
 }
