@@ -128,16 +128,32 @@ bool Triangulation::triangulation(
     ///For more functions of Matrix and Vector, please refer to 'matrix.h' and 'vector.h'
 
     // TODO: delete all above example code in your final submission
-
+    
     //--------------------------------------------------------------------------------------------------------------
     // implementation starts ...
 
     // TODO: check if the input is valid (always good because you never known how others will call your function).
 
+    if (points_0.size() < 8 || points_1.size() < 8) {
+        std::cout << "Error: at least 8 point pairs are required for triangulation.\n" << std::endl;
+        return false;
+    }
+
+    if (points_0.size() != points_1.size()) {
+        std::cout << "Error: the number of points in the two views must be the same.\n" << std::endl;
+        return false;
+    }
+
+    if (fx <= 0 || fy <= 0) {
+        std::cout << "Error: focal lengths must be positive.\n" << std::endl;
+        return false;
+    }
+
     // TODO: Estimate relative pose of two views. This can be subdivided into
     //      - estimate the fundamental matrix F;
     //      - compute the essential matrix E;
     //      - recover rotation R and t.
+    
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
