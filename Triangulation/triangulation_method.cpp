@@ -93,7 +93,8 @@ bool Triangulation::triangulation(
     double up = points_1[i][0];
     double vp = points_1[i][1];
 
-    Vector temp = (u * up,
+
+    WMatrix.set_row(i, {u * up,
         v * up,
         up,
         u * vp,
@@ -101,10 +102,8 @@ bool Triangulation::triangulation(
         vp,
         u,
         v,
-        1.0);
-
-    WMatrix.set_row(i, temp);
-};
+        1.0});
+    };
 
 
     std::cout << "The W matrix" << WMatrix << std::endl;
