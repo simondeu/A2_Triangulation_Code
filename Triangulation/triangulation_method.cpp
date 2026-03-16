@@ -29,7 +29,7 @@ Matrix33 normalize(const std::vector<Vector2D>& pts, std::vector<Vector2D>& norm
     // build transform matrix
     Matrix33 T(s,  0,  -s*cx,
                0,  s,  -s*cy,
-               0,  0,    s  );
+               0,  0,    1  );
 
     // apply to all points
     for (auto& p : pts) {
@@ -88,10 +88,10 @@ bool Triangulation::triangulation(
 
     for (size_t i = 0; i < norm_pts0.size(); ++i) {
 
-    double u  = norm_pts0[i][0];
-    double v  = norm_pts0[i][1];
-    double up = norm_pts1[i][0];
-    double vp = norm_pts1[i][1];
+    double u = norm_pts0[i].x();
+    double v = norm_pts0[i].y();
+    double up = norm_pts1[i].x();
+    double vp = norm_pts1[i].y();
 
 
     WMatrix.set_row(i, {u * up,
@@ -154,6 +154,66 @@ bool Triangulation::triangulation(
                 0,  0,  1);
 
     Matrix33 E = transpose(K) * F_unda* K;
+
+    Matrix UE(3, 3, 0.0);
+    Matrix SE(3, 3, 0.0);
+    Matrix VE(3, 3, 0.0);
+
+    svd_decompose(E, UE, SE, VE);
+
+    Matrix33 W(0, -1.0, 0.0,
+               1.0, 0.0, 0,
+               0.0, 0, 1.0);
+
+    Matrix R1 = UE * W * VE.transpose();
+    Matrix R2 = UE * W.transpose() * VE.transpose();
+
+    Vector t1 = UE.get_column(2);
+    Vector t2 = -UE.get_column(2);
+    
+
+    std::cout << "The E matrix: " << E << std::endl;
+    std::cout << "The first R matrix: " << R1 << std::endl;
+    std::cout << "The alternative R matrix: " << R2 << std::endl;
+    std::cout << "The positive t vector: " << t1 << std::endl;
+    std::cout << "The negative t vector: " << t2 << std::endl;
+
+    Matrix R_Used = R1;
+    Vector t_Used = t2;
+
+    Matrix M1 = K * Matrix34::identity();
+    Matrix M2 = K * Matrix34(R_Used(0,0), R_Used(0,1), R_Used(0,2), t_Used[0],
+                                R_Used(1,0), R_Used(1,1), R_Used(1,2), t_Used[1],
+                                R_Used(2,0), R_Used(2,1), R_Used(2,2), t_Used[2]);
+    std::cout << "The first M matrix: " << M1 << std::endl;
+    std::cout << "The second M matrix: " << M2 << std::endl;
+
+
+    Matrix A(4, 4, 0.0);
+    
+    for (int j = 0; j < points_0.size(); ++j) {
+        Matrix A(4,4);
+        A.set_row(0, points_0[j].x() * M1.get_row(2) - M1.get_row(0));
+        A.set_row(1, points_0[j].y() * M1.get_row(2) - M1.get_row(1));
+        A.set_row(2, points_1[j].x() * M2.get_row(2) - M2.get_row(0));
+        A.set_row(3, points_1[j].y() * M2.get_row(2) - M2.get_row(1));
+    
+        Matrix U_A(4, 4, 0.0);
+        Matrix S_A(4, 4, 0.0);
+        Matrix V_A(4, 4, 0.0);
+        svd_decompose(A, U_A, S_A, V_A);
+        Vector4D X = V_A.get_column(3)/V_A.get_column(3)[3];
+        points_3d.push_back(X.cartesian());
+    }
+
+
+
+    
+    std::cout << "The reconstructed 3D points: " << points_3d[0] << std::endl;
+
+    R = R_Used;
+    t = t_Used;
+
     return points_3d.size() > 0;
 }
 
