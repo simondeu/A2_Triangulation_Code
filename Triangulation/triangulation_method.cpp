@@ -207,10 +207,6 @@ bool Triangulation::triangulation(
     }
 
 
-
-    
-    std::cout << "The reconstructed 3D points: " << points_3d[0] << std::endl;
-
     R = R_Used;
     t = t_Used;
 
