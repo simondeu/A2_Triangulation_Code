@@ -114,14 +114,22 @@ bool Triangulation::triangulation(
 
     svd_decompose(WMatrix, U, S, V);
 
-<<<<<<< HEAD
-    
-=======
     Matrix F(3, 3, V.get_column(8).data());
     
     std::cout << "The F matrix: " << F << std::endl;
 
->>>>>>> f49071ac902ae3b36382e6300e247beb060b1ece
+    Matrix UF(3, 3, 0.0);
+    Matrix SF(3, 3, 0.0);
+    Matrix VF(3, 3, 0.0);
+
+    svd_decompose(F, UF, SF, VF);
+
+    SF.set_row(2, {0.0, 0.0, 0.0});
+
+    Matrix F_constraint = UF * SF * VF.transpose();
+
+    std::cout << "The F matrix after enforcing rank 2 constraint: " << F_constraint << std::endl;
+
     return points_3d.size() > 0;
 }
 
