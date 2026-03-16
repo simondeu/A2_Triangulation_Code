@@ -124,7 +124,7 @@ bool Triangulation::triangulation(
 
     svd_decompose(F, UF, SF, VF);
 
-    SF.set_row(2, {0.0, 0.0, 0.0});
+    SF.set_row(2, {0.0, 0.0, 0.0    });
 
     Matrix F_constraint = UF * SF * VF.transpose();
 
@@ -147,6 +147,13 @@ bool Triangulation::triangulation(
 
     // std::cout << P1Matrix * Final_F * P0Matrix.transpose() << std::endl;
 
+    Matrix33 F_unda = transpose(T1) * F_constraint * T0; //A 3×3 matrix encoding the epipolar geometry between the two views,
+                                                    //It maps a point in image 0 to an epipolar line in image 1.
+    Matrix33 K(fx, s,  cx,
+                0, fy, cy,
+                0,  0,  1);
+
+    Matrix33 E = transpose(K) * F_unda* K;
     return points_3d.size() > 0;
 }
 
