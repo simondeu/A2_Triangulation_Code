@@ -84,14 +84,14 @@ bool Triangulation::triangulation(
     // ------------------------------------------------------------------
     // next steps go here (W matrix, SVD, F, E, R, t, triangulation)
     // ------------------------------------------------------------------
-    Matrix WMatrix(points_0.size(), 9, 0.0);
+    Matrix WMatrix(norm_pts0.size(), 9, 0.0);
 
-    for (size_t i = 0; i < points_0.size(); ++i) {
+    for (size_t i = 0; i < norm_pts0.size(); ++i) {
 
-    double u  = points_0[i][0];
-    double v  = points_0[i][1];
-    double up = points_1[i][0];
-    double vp = points_1[i][1];
+    double u  = norm_pts0[i][0];
+    double v  = norm_pts0[i][1];
+    double up = norm_pts1[i][0];
+    double vp = norm_pts1[i][1];
 
 
     WMatrix.set_row(i, {u * up,
@@ -108,12 +108,12 @@ bool Triangulation::triangulation(
 
     std::cout << "The W matrix" << WMatrix << std::endl;
 
-    Matrix U(points_0.size(), points_0.size(), 0.0);
-    Matrix S(points_0.size(), 9, 0.0);
+    Matrix U(norm_pts0.size(), points_0.size(), 0.0);
+    Matrix S(norm_pts0.size(), 9, 0.0);
     Matrix V(9, 9, 0.0);
 
     svd_decompose(WMatrix, U, S, V);
 
-
+    
     return points_3d.size() > 0;
 }
