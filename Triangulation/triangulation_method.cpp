@@ -29,7 +29,7 @@ Matrix33 normalize(const std::vector<Vector2D>& pts, std::vector<Vector2D>& norm
     // build transform matrix
     Matrix33 T(s,  0,  -s*cx,
                0,  s,  -s*cy,
-               0,  0,    1  );
+               0,  0,    s  );
 
     // apply to all points
     for (auto& p : pts) {
@@ -129,6 +129,23 @@ bool Triangulation::triangulation(
     Matrix F_constraint = UF * SF * VF.transpose();
 
     std::cout << "The F matrix after enforcing rank 2 constraint: " << F_constraint << std::endl;
+
+    Matrix Final_F(3, 3, 0.0);
+    Final_F = T1.transpose() * F_constraint * T0;
+
+    std::cout << "The S matrix of F is: " << SF << std::endl;
+
+    std::cout << "The final F matrix: " << Final_F << std::endl;
+
+    Matrix P0Matrix(points_0.size(), 3, 1.0);
+    Matrix P1Matrix(points_1.size(), 3, 1.0);
+
+    for (size_t i = 0; i < points_0.size(); ++i) {
+        P0Matrix.set_row(i, {points_0[i].x(), points_0[i].y(), 1.0});
+        P1Matrix.set_row(i, {points_1[i].x(), points_1[i].y(), 1.0});
+    }
+
+    // std::cout << P1Matrix * Final_F * P0Matrix.transpose() << std::endl;
 
     return points_3d.size() > 0;
 }
