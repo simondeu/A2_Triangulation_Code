@@ -40,6 +40,13 @@ Matrix33 normalize(const std::vector<Vector2D>& pts, std::vector<Vector2D>& norm
     return T;
 }
 
+double det3x3(const Matrix& M) {
+    return 
+        M(0,0) * (M(1,1)*M(2,2) - M(1,2)*M(2,1)) -
+        M(0,1) * (M(1,0)*M(2,2) - M(1,2)*M(2,0)) +
+        M(0,2) * (M(1,0)*M(2,1) - M(1,1)*M(2,0));
+}
+
 // =====================================================================
 // MAIN FUNCTION
 // =====================================================================
@@ -108,7 +115,7 @@ bool Triangulation::triangulation(
 
     std::cout << "The W matrix: " << WMatrix << std::endl;
 
-    Matrix U(norm_pts0.size(), points_0.size(), 0.0);
+    Matrix U(norm_pts0.size(), norm_pts0.size(), 0.0);
     Matrix S(norm_pts0.size(), 9, 0.0);
     Matrix V(9, 9, 0.0);
 
@@ -130,12 +137,8 @@ bool Triangulation::triangulation(
 
     std::cout << "The F matrix after enforcing rank 2 constraint: " << F_constraint << std::endl;
 
-    Matrix Final_F(3, 3, 0.0);
-    Final_F = T1.transpose() * F_constraint * T0;
-
     std::cout << "The S matrix of F is: " << SF << std::endl;
 
-    std::cout << "The final F matrix: " << Final_F << std::endl;
 
     Matrix P0Matrix(points_0.size(), 3, 1.0);
     Matrix P1Matrix(points_1.size(), 3, 1.0);
@@ -147,8 +150,9 @@ bool Triangulation::triangulation(
 
     // std::cout << P1Matrix * Final_F * P0Matrix.transpose() << std::endl;
 
-    Matrix33 F_unda = transpose(T1) * F_constraint * T0; //A 3×3 matrix encoding the epipolar geometry between the two views,
-                                                    //It maps a point in image 0 to an epipolar line in image 1.
+    Matrix33 F_unda = transpose(T1) * F_constraint * T0; 
+    std::cout << "The final F matrix: " << F_unda << std::endl;
+                                                    
     Matrix33 K(fx, s,  cx,
                 0, fy, cy,
                 0,  0,  1);
@@ -161,12 +165,22 @@ bool Triangulation::triangulation(
 
     svd_decompose(E, UE, SE, VE);
 
+    //  essential matrix constraint
+    SE.set_row(0, {1, 0, 0});
+    SE.set_row(1, {0, 1, 0});
+    SE.set_row(2, {0, 0, 0});
+
+    E = UE * SE * VE.transpose();
+
     Matrix33 W(0, -1.0, 0.0,
                1.0, 0.0, 0,
                0.0, 0, 1.0);
 
     Matrix R1 = UE * W * VE.transpose();
     Matrix R2 = UE * W.transpose() * VE.transpose();
+    // Multiply by the determinant which is either +1 or -1
+    R1 = det3x3(R1) * R1;
+    R2 = det3x3(R2) * R2;
 
     Vector t1 = UE.get_column(2);
     Vector t2 = -UE.get_column(2);
@@ -178,40 +192,81 @@ bool Triangulation::triangulation(
     std::cout << "The positive t vector: " << t1 << std::endl;
     std::cout << "The negative t vector: " << t2 << std::endl;
 
-    Matrix R_Used = R1;
-    Vector t_Used = t2;
+    std::vector<std::pair<Matrix, Vector3D>> candidates = {{R1,  t1}, {R1,  t2}, {R2,  t1}, {R2,  t2}
+};
+   
+    int best_count = -1;  // even if points infront of cameras is 0, make it the best_count
+    Matrix best_R;
+    Vector3D best_t;
+    std::vector<Vector3D> best_points;
 
-    Matrix M1 = K * Matrix34::identity();
-    Matrix M2 = K * Matrix34(R_Used(0,0), R_Used(0,1), R_Used(0,2), t_Used[0],
-                                R_Used(1,0), R_Used(1,1), R_Used(1,2), t_Used[1],
-                                R_Used(2,0), R_Used(2,1), R_Used(2,2), t_Used[2]);
-    std::cout << "The first M matrix: " << M1 << std::endl;
-    std::cout << "The second M matrix: " << M2 << std::endl;
+    for (int i = 0; i < candidates.size(); i++) {
 
+        Matrix R_test = candidates[i].first;
+        Vector3D t_test = candidates[i].second;
 
-    Matrix A(4, 4, 0.0);
+        int count = 0;
+        std::vector<Vector3D> temp_points;
+
+        Matrix34 P1(1,0,0,0,
+            0,1,0,0,
+            0,0,1,0);
+
+        Matrix34 P2(R_test(0,0), R_test(0,1), R_test(0,2), t_test[0],
+            R_test(1,0), R_test(1,1), R_test(1,2), t_test[1],
+            R_test(2,0), R_test(2,1), R_test(2,2), t_test[2]);
+
+        Matrix M1 = K * P1;
+        Matrix M2 = K * P2;
     
-    for (int j = 0; j < points_0.size(); ++j) {
-        Matrix A(4,4);
-        A.set_row(0, points_0[j].x() * M1.get_row(2) - M1.get_row(0));
-        A.set_row(1, points_0[j].y() * M1.get_row(2) - M1.get_row(1));
-        A.set_row(2, points_1[j].x() * M2.get_row(2) - M2.get_row(0));
-        A.set_row(3, points_1[j].y() * M2.get_row(2) - M2.get_row(1));
+        Matrix A(4, 4, 0.0);
     
-        Matrix U_A(4, 4, 0.0);
-        Matrix S_A(4, 4, 0.0);
-        Matrix V_A(4, 4, 0.0);
-        svd_decompose(A, U_A, S_A, V_A);
-        Vector4D X = V_A.get_column(3)/V_A.get_column(3)[3];
-        points_3d.push_back(X.cartesian());
+        for (int j = 0; j < points_0.size(); ++j) {
+            Matrix A(4,4);
+            A.set_row(0, points_0[j].x() * M1.get_row(2) - M1.get_row(0));
+            A.set_row(1, points_0[j].y() * M1.get_row(2) - M1.get_row(1));
+            A.set_row(2, points_1[j].x() * M2.get_row(2) - M2.get_row(0));
+            A.set_row(3, points_1[j].y() * M2.get_row(2) - M2.get_row(1));
+    
+            Matrix U_A(4, 4, 0.0);
+            Matrix S_A(4, 4, 0.0);
+            Matrix V_A(4, 4, 0.0);
+            svd_decompose(A, U_A, S_A, V_A);
+            Vector4D Xh = V_A.get_column(3)/V_A.get_column(3)[3];
+       
+            Vector3D P0 = Xh.cartesian();     // convert to 3D point
+            temp_points.push_back(P0);       // appends 3D point to temp_points
+            double z0 = P0.z();
+
+            Vector3D P1 = R_test * P0 + t_test;  // transform point to camera 1's coordinate frame
+            double z1 = P1.z();
+            // check if point is infront of both cameras:
+            if (z0 > 0 && z1 > 0) {
+            count++;
+            }
+        }
+
+    
+    std::cout << "Combination " << i+1 << ": " << count << " points in front" << std::endl;
+    
+    // use the combination of R and t that gives the highest count of positive points
+    if (count > best_count) {
+        best_count = count;
+        best_R = R_test;
+        best_t = t_test;
+        best_points = temp_points;
     }
+}
+    
+    R = best_R;
+    t = best_t;
+    points_3d = best_points;
 
-
-    R = R_Used;
-    t = t_Used;
+    std::cout << "The value for R is:" << R << "and the value for t is:" << t << std::endl;
+    std::cout << "Best count: " << best_count << std::endl;
 
     return points_3d.size() > 0;
-}
+};
 
 // TODO: Estimate relative pose of two views. This can be subdivided into
 //      - estimate the fundamental matrix F;
