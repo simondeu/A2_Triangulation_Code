@@ -165,7 +165,7 @@ bool Triangulation::triangulation(
 
     svd_decompose(E, UE, SE, VE);
 
-    //  essential matrix constraint
+    //  essential matrix constraint: It has rank 2 and is singular
     SE.set_row(0, {1, 0, 0});
     SE.set_row(1, {0, 1, 0});
     SE.set_row(2, {0, 0, 0});
