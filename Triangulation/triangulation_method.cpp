@@ -4,9 +4,6 @@
 
 using namespace easy3d;
 
-// =====================================================================
-// HELPER FUNCTION - must be ABOVE triangulation()
-// =====================================================================
 Matrix33 normalize(const std::vector<Vector2D>& pts, std::vector<Vector2D>& normalized_pts) {
     // compute centroid
     double cx = 0, cy = 0;
@@ -47,9 +44,6 @@ double det3x3(const Matrix& M) {
         M(0,2) * (M(1,0)*M(2,1) - M(1,1)*M(2,0));
 }
 
-// =====================================================================
-// MAIN FUNCTION
-// =====================================================================
 bool Triangulation::triangulation(
         double fx, double fy,
         double cx, double cy,
@@ -61,9 +55,7 @@ bool Triangulation::triangulation(
         Vector3D &t
 ) const
 {
-    // ------------------------------------------------------------------
-    // 1. Input validation
-    // ------------------------------------------------------------------
+    // Checks if data-set is valid for calculation
     if (points_0.size() < 8 || points_1.size() < 8) {
         std::cout << "Error: need at least 8 point pairs." << std::endl;
         return false;
@@ -77,9 +69,7 @@ bool Triangulation::triangulation(
         return false;
     }
 
-    // ------------------------------------------------------------------
-    // 2. Normalize points
-    // ------------------------------------------------------------------
+    // normalize points
     std::vector<Vector2D> norm_pts0, norm_pts1;
     Matrix33 T0 = normalize(points_0, norm_pts0);
     Matrix33 T1 = normalize(points_1, norm_pts1);
@@ -88,9 +78,7 @@ bool Triangulation::triangulation(
     std::cout << "T0:\n" << T0 << std::endl;
     std::cout << "T1:\n" << T1 << std::endl;
 
-    // ------------------------------------------------------------------
-    // next steps go here (W matrix, SVD, F, E, R, t, triangulation)
-    // ------------------------------------------------------------------
+    // Calculating matrices
     Matrix WMatrix(norm_pts0.size(), 9, 0.0);
 
     for (size_t i = 0; i < norm_pts0.size(); ++i) {
@@ -100,7 +88,7 @@ bool Triangulation::triangulation(
     double up = norm_pts1[i].x();
     double vp = norm_pts1[i].y();
 
-
+    // setting up W matrix
     WMatrix.set_row(i, {u * up,
         v * up,
         up,
@@ -112,8 +100,6 @@ bool Triangulation::triangulation(
         1.0});
     };
 
-
-    std::cout << "The W matrix: " << WMatrix << std::endl;
 
     Matrix U(norm_pts0.size(), norm_pts0.size(), 0.0);
     Matrix S(norm_pts0.size(), 9, 0.0);
@@ -131,7 +117,7 @@ bool Triangulation::triangulation(
 
     svd_decompose(F, UF, SF, VF);
 
-    SF.set_row(2, {0.0, 0.0, 0.0    });
+    SF.set_row(2, {0.0, 0.0, 0.0});
 
     Matrix F_constraint = UF * SF * VF.transpose();
 
@@ -189,11 +175,10 @@ bool Triangulation::triangulation(
     std::cout << "The E matrix: " << E << std::endl;
     std::cout << "The first R matrix: " << R1 << std::endl;
     std::cout << "The alternative R matrix: " << R2 << std::endl;
-    std::cout << "The positive t vector: " << t1 << std::endl;
-    std::cout << "The negative t vector: " << t2 << std::endl;
+    std::cout << "The first t vector: " << t1 << std::endl;
+    std::cout << "The second t vector: " << t2 << std::endl;
 
-    std::vector<std::pair<Matrix, Vector3D>> candidates = {{R1,  t1}, {R1,  t2}, {R2,  t1}, {R2,  t2}
-};
+    std::vector<std::pair<Matrix, Vector3D>> candidates = {{R1,  t1}, {R1,  t2}, {R2,  t1}, {R2,  t2}};
    
     int best_count = -1;  // even if points infront of cameras is 0, make it the best_count
     Matrix best_R;
@@ -256,7 +241,7 @@ bool Triangulation::triangulation(
         best_t = t_test;
         best_points = temp_points;
     }
-}
+    }
     
     R = best_R;
     t = best_t;
@@ -267,22 +252,3 @@ bool Triangulation::triangulation(
 
     return points_3d.size() > 0;
 };
-
-// TODO: Estimate relative pose of two views. This can be subdivided into
-//      - estimate the fundamental matrix F;
-//      - compute the essential matrix E;
-//      - recover rotation R and t.
-
-// TODO: Reconstruct 3D points. The main task is
-//      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
-
-// TODO: Don't forget to
-//          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
-//          - write the recovered relative pose into R and t (the view will be updated as seen from the 2nd camera,
-//            which can help you check if R and t are correct).
-//       You must return either 'true' or 'false' to indicate whether the triangulation was successful (so the
-//       viewer will be notified to visualize the 3D points and update the view).
-//       There are a few cases you should return 'false' instead, for example:
-//          - function not implemented yet;
-//          - input not valid (e.g., not enough points, point numbers don't match);
-//          - encountered failure in any step.
