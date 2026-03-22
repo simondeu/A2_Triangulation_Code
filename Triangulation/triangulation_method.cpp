@@ -250,5 +250,16 @@ bool Triangulation::triangulation(
     std::cout << "The value for R is:" << R << "and the value for t is:" << t << std::endl;
     std::cout << "Best count: " << best_count << std::endl;
 
+    int idx = 0;
+    double error = 0;
+    for (auto& p : points_3d) {
+        double u = fx * p.x() / p.z() + s * p.y() / p.z() +cx;
+        double v = fy * p.y() / p.z() + cy;
+        error += (Vector2D(u, v) - points_0[idx]).norm();
+        idx ++;
+    }
+
+    std::cout << "Average reprojection error: " << error / points_3d.size() << " pixels"<< std::endl;
+
     return points_3d.size() > 0;
 };
